@@ -1,3 +1,8 @@
+export interface SitecoreItemReference {
+    ID: string;
+    Path: string;
+}
+
 export interface OrphanSitecoreItem {
     ID: string;
     Parent?: string;

@@ -1,9 +1,9 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as yaml from "js-yaml";
-import * as uuidv4 from "uuid/v4";
+import uuidv4 from "uuid/v4";
 
-import { SitecoreItem, ItemField, OrphanSitecoreItem, ItemLanguage, ItemVersion } from "./types";
+import { SitecoreItem, ItemField, OrphanSitecoreItem, ItemLanguage, ItemVersion, SitecoreItemReference } from "./types";
 import { FILE } from "./fields";
 
 export * from "./types";
@@ -24,23 +24,17 @@ export function formatItem(item: SitecoreItem) {
     return fixGeneratedYaml(itemYaml);
 }
 
-export function saveItem(item: SitecoreItem, itemPath: string, reparent: boolean = true) {
+function saveItem(item: SitecoreItem, itemPath: string, reparent: boolean = true) {
     if (reparent) {
-        item = reparentItem(item, itemPath, path.basename(itemPath, path.extname(itemPath)));
+        item = reparentItem(item, loadItem(getParentPath(itemPath)) as SitecoreItemReference,
+                            path.basename(itemPath, path.extname(itemPath)));
     }
 
     fs.writeFileSync(itemPath, formatItem(item), "utf8");
 }
 
-export function reparentItem(item: OrphanSitecoreItem, itemPath: string, itemName: string): SitecoreItem {
-
-    const parentPath = getParentPath(itemPath);
-    if (!fs.existsSync(parentPath)) {
-        throw new Error(`Could not find parent Unicorn YML for ${itemPath} at ${parentPath}`);
-    }
-
-    const parentItem = loadItem(parentPath);
-
+// tslint:disable-next-line:max-line-length
+export function reparentItem(item: OrphanSitecoreItem, parentItem: SitecoreItemReference, itemName: string): SitecoreItem {
     item.Path = `${parentItem.Path}/${itemName}`;
     item.Parent = parentItem.ID;
 

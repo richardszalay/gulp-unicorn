@@ -1,22 +1,25 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import { RawSource, Source } from "webpack-sources";
-import { compilation, Compiler } from "webpack";
+import File from "vinyl";
 
 import {
     SitecoreItem,
-    formatDatetime,
     updateField,
     getValidItemName,
     reparentItem,
     newItem,
-    OrphanSitecoreItem,
     loadItem,
     formatItem,
     newID,
-    findField
+    findField,
+    SitecoreItemReference
 } from "./node-rainbow";
+
+export * from "./types";
+
+import { Transform } from "stream";
+import { FileTypeInfo, UnicornPluginOptions, OutputPathSelector } from "./types";
 
 const FIELD_IDS = {
     ICON: "06d5295c-ed2f-4a54-9bf2-26228d113318",
@@ -33,73 +36,86 @@ const TEMPLATE_IDS = {
     FILE: "962b53c4-f93b-4df9-9821-415c867b8903",
 };
 
-interface WebpackAsset {
-    source(): string | Buffer;
-}
+type OptionFormats =
+    string |
+    OutputPathSelector |
+    UnicornPluginOptions;
 
-export interface RainbowPluginOptions {
-    getFileTypeInfo?(assetPath: string, info: FileTypeInfo): FileTypeInfo | undefined;
+type OutputHandler = (file: File, output: SitecoreItem,
+                      outputPath: string | undefined, callback: (error?: any) => void) => void;
 
-    populateSitecoreItem?(item: SitecoreItem): void;
-}
+export default (options: UnicornPluginOptions, handler?: OutputHandler) =>
+    new UnicornTransform(options, handler) as Transform;
 
-export class RainbowPlugin {
+export const write = (options: UnicornPluginOptions) => new UnicornTransform(options, writeOutput) as Transform;
+export const transform = (options: UnicornPluginOptions) => new UnicornTransform(options, transformOutput) as Transform;
 
-    private options: RainbowPluginOptions;
+class UnicornTransform extends Transform {
 
-    constructor(options?: RainbowPluginOptions) {
-        this.options = options || {};
-    }
+    private handler: OutputHandler;
+    private options: UnicornPluginOptions;
 
-    apply(compiler: Compiler) {
-        if (compiler.hooks) {
-            compiler.hooks.emit.tapAsync("UnicornPlugin", (c, cb) => this.emit(c, cb));
+    constructor(options: OptionFormats, handler?: OutputHandler) {
+        super({objectMode: true});
+
+        if (typeof options === "string" || typeof options === "function") {
+            this.options = {
+                outputPath: options
+            };
         } else {
-            compiler.plugin("emit", (c, cb) => this.emit(c, cb));
+            this.options = options;
         }
+
+        this.handler = handler || writeOutput;
     }
 
-    emit(comp: compilation.Compilation, callback: () => void) {
+    _transform(chunk: File, encoding: string, callback: (err?: any) => void) {
 
-        const { assets } = comp;
+        const filename = path.basename(chunk.path);
+        const fileInfo = getFileTypeInfo(filename, this.options);
+        const parentItem = getParentItem(fileInfo, this.options);
 
-        for (const file of Object.keys(assets)) {
-            const fileInfo = getFileTypeInfo(file, this.options);
-            const unicornItem = getTargetItem(fileInfo, comp.outputOptions.path);
+        const outputPath = resolveOutputPath(this.options, fileInfo);
+        const unicornItem = getTargetItem(fileInfo, parentItem, outputPath);
 
-            updateSitecoreItem(unicornItem, assets[file] as WebpackAsset, fileInfo, this.options);
-            assets[fileInfo.filename] = createSourceFromItem(unicornItem);
-            delete assets[file];
-        }
+        updateSitecoreItem(unicornItem, chunk.contents, fileInfo, this.options);
 
-        callback();
+        this.handler(chunk, unicornItem, outputPath, callback);
     }
 }
 
-function createSourceFromItem(item: SitecoreItem): Source {
-    const outputYaml = formatItem(item);
+function getParentItem(info: FileTypeInfo, options: UnicornPluginOptions): SitecoreItemReference {
 
-    return (Buffer.alloc) ?
-        new RawSource(Buffer.from(outputYaml) as any as string) :
-        new RawSource(outputYaml); // Older node versions
+    const parentReference = resolveParentItem(options, info);
+
+    if (typeof parentReference === "string") {
+        return loadParent(info.filename, parentReference) as SitecoreItemReference;
+    }
+
+    return parentReference;
 }
 
-function getTargetItem(info: FileTypeInfo, outputPath: string): SitecoreItem {
-    const outputFile = path.join(outputPath, info.filename);
+function loadParent(itemPath: string, parentPath: string) {
+    if (!fs.existsSync(parentPath)) {
+        throw new Error(`Could not find parent Unicorn YML for ${itemPath} at ${parentPath}`);
+    }
 
-    const partialItem = (fs.existsSync(outputFile)) ?
-        loadItem(outputFile) :
+    return loadItem(parentPath);
+}
+
+function getTargetItem(info: FileTypeInfo, parentItem: SitecoreItemReference, outputPath?: string): SitecoreItem {
+
+    const partialItem = (outputPath && fs.existsSync(outputPath)) ?
+        loadItem(outputPath) :
         newItem(info.templateId);
 
-    const unicornItem = reparentItem(partialItem, outputFile, info.name);
+    const unicornItem = reparentItem(partialItem, parentItem, info.name);
 
     return unicornItem;
 }
 
-function updateSitecoreItem(item: SitecoreItem, asset: WebpackAsset,
-                            fileInfo: FileTypeInfo, options: RainbowPluginOptions) {
-
-    let input = asset.source();
+function updateSitecoreItem(item: SitecoreItem, input: any,
+                            fileInfo: FileTypeInfo, options: UnicornPluginOptions) {
 
     item.Template = fileInfo.templateId;
 
@@ -164,22 +180,13 @@ function updateSitecoreItem(item: SitecoreItem, asset: WebpackAsset,
     }
 }
 
-export interface FileTypeInfo {
-    filename: string;
-    name: string;
-    extension: string;
-    mimeType: string;
-    templateId: string;
-    icon?: string;
-}
-
 const KnownMimeTypes: {[name: string]: string} = {
     ".js": "application/x-javascript",
     ".css": "text/css",
     ".map": "application/json"
 };
 
-function getFileTypeInfo(filename: string, options: RainbowPluginOptions): FileTypeInfo {
+function getFileTypeInfo(filename: string, options: UnicornPluginOptions): FileTypeInfo {
 
     const targetFile = changeExtension(filename, ".yml");
     const extension = path.extname(filename);
@@ -203,4 +210,67 @@ function getFileTypeInfo(filename: string, options: RainbowPluginOptions): FileT
 function changeExtension(source: string, ext: string) {
     const basename = path.basename(source, path.extname(source)) + ext;
     return path.join(path.dirname(source), basename);
+}
+
+function resolveParentItem(options: UnicornPluginOptions, info: FileTypeInfo) {
+    if (options.parentItem) {
+        const parentItem = typeof options.parentItem === "string"
+                ? options.parentItem
+                : options.parentItem(info);
+
+        return parentItem;
+    }
+
+    if (options.outputPath) {
+        const outputDir = typeof options.outputPath === "string"
+                ? options.outputPath
+                : options.outputPath(info);
+
+        return outputDir + ".yml";
+    }
+
+    throw new Error(`Cannot resolve parent Sitecore item for ${info.filename}`);
+}
+
+function resolveOutputPath(options: UnicornPluginOptions, info: FileTypeInfo): string | undefined {
+
+    if (options.outputPath !== undefined) {
+        const outputDir = typeof options.outputPath === "string"
+            ? options.outputPath
+            : options.outputPath(info);
+
+        return path.join(outputDir, info.filename);
+    }
+
+    if (options.parentItem !== undefined) {
+        const parentItem = typeof options.parentItem === "string"
+            ? options.parentItem
+            : options.parentItem(info);
+
+        if (typeof parentItem === "string") {
+            const parentDir = path.dirname(parentItem);
+            const parentName = path.basename(parentItem, path.extname(parentItem));
+
+            return path.join(parentDir, parentName, info.filename);
+        }
+    }
+}
+
+function writeOutput(file: File, output: SitecoreItem, outputPath: string | undefined, callback: (err?: any) => void) {
+
+    const content = formatItem(output);
+
+    if (outputPath === undefined) {
+        throw new Error(`Cannot write unicorn output for ${file.basename} without parentItem or ` +
+            "outputPath resolving to a string path");
+    }
+
+    fs.writeFile(outputPath, content, "utf8", callback);
+}
+
+// tslint:disable-next-line:max-line-length
+function transformOutput(file: File, output: SitecoreItem, outputPath: string | undefined, callback: (err?: any) => void) {
+    file.filename = path.basename(file.path, file.extname);
+    file.contents = Buffer.from(formatItem(output));
+    callback();
 }

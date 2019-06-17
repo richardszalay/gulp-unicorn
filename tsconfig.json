@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "strict": true,
-        "target": "es5",
+        "target": "es6",
         "lib": [
             "es6",
             "dom"
@@ -10,7 +10,8 @@
         "declaration": true,
         "outDir": "./dist",
         "module": "commonjs",
-        "sourceMap": false
+        "sourceMap": false,
+        "esModuleInterop": true
     },
     "exclude": [
         "dist",

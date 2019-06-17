@@ -1,131 +1,140 @@
-import { createMockEnvironment } from "./helpers";
 
 import { parseItem } from "../node-rainbow";
 
-import * as webpack from "webpack";
-import { RainbowPlugin, RainbowPluginOptions } from "..";
-import * as tapable from "tapable";
-
 import { getUuid, enqueueUuid, getDate, setDate } from "./mocks";
+import { transform, UnicornPluginOptions } from "..";
 
 jest.mock("uuid/v4", () => () => getUuid());
 
-const { AsyncSeriesHook } = tapable;
+import File from "vinyl";
 
 describe("getFileTypeInfo options", () => {
 
-    let compilation: webpack.compilation.Compilation;
+    let file: File;
 
     beforeEach(() => {
-        compilation = createMockEnvironment("parent1");
-
-        compilation.assets["test.js"] = {
-            source: () => "function foo(bar) { return bar; }"
-        };
+        file = new File({
+            path: __dirname + `/fixtures/parent1/test.js`,
+            contents: Buffer.from("function foo2(bar) { return bar; }")
+        });
 
         enqueueUuid("aaa", "bbb");
         Date.now = () => new Date("2018-01-02T03:04:05Z").valueOf();
     });
 
     it("can change the item name", async () => {
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.name += "2";
                 return info;
             }
         };
 
-        const promise = new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["test.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        await expect(promise)
-            .resolves.toMatchObject({
-                Path: "/content/Parent1/test2"
-            });
+        const result = parseItem(file.contents!.toString());
+
+        await expect(result).toMatchObject({
+            Path: "/content/Parent1/test2"
+        });
     });
 
     it("can change the template id", async () => {
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.templateId = "aaabbbccc";
                 return info;
             }
         };
 
-        const promise = new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["test.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        await expect(promise)
-            .resolves.toMatchObject({
-                Template: "aaabbbccc"
-            });
+        const result = parseItem(file.contents!.toString());
+
+        await expect(result).toMatchObject({
+            Template: "aaabbbccc"
+        });
     });
 
     it("can change the template id for existing items", async () => {
 
-        compilation.assets["child1.js"]  = compilation.assets["test.js"];
-        delete compilation.assets["test.js"];
+        file.path = __dirname + `/fixtures/parent1/child1.js`;
 
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.templateId = "aaabbbccc";
                 return info;
             }
         };
 
-        const promise = new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["child1.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        await expect(promise)
-            .resolves.toMatchObject({
-                Template: "aaabbbccc"
-            });
+        const result = parseItem(file.contents!.toString());
+
+        await expect(result).toMatchObject({
+            Template: "aaabbbccc"
+        });
     });
 
     it("can change the mimetype", async () => {
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.mimeType = "text/custom";
                 return info;
             }
         };
 
-        const item = await new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["test.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        const field = item.SharedFields.find((f) => f.Hint === "Mime Type");
+        const result = parseItem(file.contents!.toString());
+
+        const field = result.SharedFields.find((f) => f.Hint === "Mime Type");
 
         expect(field!.Value).toEqual("text/custom");
     });
 
     it("can change the icon", async () => {
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.icon = "/icon.png";
                 return info;
             }
         };
 
-        const item = await new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["test.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        const field = item.SharedFields.find((f) => f.Hint === "__Icon");
+        const result = parseItem(file.contents!.toString());
+
+        const field = result.SharedFields.find((f) => f.Hint === "__Icon");
 
         expect(field!.Value).toEqual("/icon.png");
     });
 
     it("can change the extension", async () => {
-        const options: RainbowPluginOptions = {
+        const options: UnicornPluginOptions = {
+            outputPath: __dirname + "/fixtures/parent1",
+
             getFileTypeInfo(filename, info) {
                 info.extension = "css";
                 return info;
             }
         };
 
-        const item = await new Promise((res, rej) => new RainbowPlugin(options).emit(compilation, res))
-            .then(() => parseItem(compilation.assets["test.yml"].source().toString()));
+        await new Promise((res, rej) => transform(options)._transform(file, "utf8", res));
 
-        const field = item.SharedFields.find((f) => f.Hint === "Extension");
+        const result = parseItem(file.contents!.toString());
+
+        const field = result.SharedFields.find((f) => f.Hint === "Extension");
 
         expect(field!.Value).toEqual("css");
     });

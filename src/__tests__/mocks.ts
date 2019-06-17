@@ -1,5 +1,12 @@
+import { SitecoreItem } from "../node-rainbow";
+import File from "vinyl";
 
 let uuidQueue: string[] = [];
+
+// tslint:disable-next-line:max-line-length
+export function nullHandler(file: File, output: SitecoreItem, outputPath: string | undefined, callback: (err?: any) => void) {
+    callback();
+}
 
 export function getUuid() {
     if (uuidQueue.length === 0) {

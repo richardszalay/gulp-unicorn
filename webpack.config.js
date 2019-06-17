@@ -5,7 +5,7 @@ module.exports = {
 
     output: {
         path: path.resolve(__dirname, "dist"),
-        filename: "webpack-rainbow-plugin.js"
+        filename: "gulp-unicorn.js"
     },
 
     target: "node",
@@ -34,7 +34,7 @@ DtsBundlePlugin.prototype.apply = function (compiler) {
     var dts = require('dts-bundle');
 
     dts.bundle({
-      name: "webpack-rainbow-plugin",
+      name: "gulp-unicorn",
       main: 'src/index.d.ts',
       out: '../dist/index.d.ts',
       removeSource: true,
