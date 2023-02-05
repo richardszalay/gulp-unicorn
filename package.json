@@ -1,5 +1,47 @@
-{
-  "name": "gulp-unicorn",
+maps :char keyset=: meta/utf8/unicorn :
+list all available keyboard layouts that can be configured on your system, type:
+localectl list-keymaps
+Example 2.5. Searching for a Particular Keymap
+You can use grep to search the output of the previous command for a specific keymap name. There are often multiple keymaps compatible with your currently set locale. For example, to find available Czech keyboard layouts, type:
+~]$ localectl list-keymaps | grep cz
+cz
+cz-cp1250
+cz-lat2
+cz-lat2-prog
+cz-qwerty
+cz-us-qwertz
+sunt5-cz-us
+sunt5-us-cz
+2.2.3. Setting the Keymap
+To set the default keyboard layout for your system, use the following command as root:
+localectl set-keymap map
+Replace map with the name of the keymap taken from the output of the localectl list-keymaps command. Unless the --no-convert option is passed, the selected setting is also applied to the default keyboard mapping of the X11 window system, after converting it to the closest matching X11 keyboard mapping. This also applies in reverse, you can specify both keymaps with the following command as root:
+localectl set-x11-keymap map
+If you want your X11 layout to differ from the console layout, use the --no-convert option.
+localectl --no-convert set-x11-keymap map
+With this option, the X11 keymap is specified without changing the previous console layout setting.
+Example 2.6. Setting the X11 Keymap Separate
+Imagine you want to use German keyboard layout in the graphical interface, but for console operations you want to retain the US keymap. To do so, type as root:
+~]# localectl --no-convert set-x11-keymap de
+Then you can verify if your setting was successful by checking the current status:
+~]$ localectl status
+  System Locale: LANG=de_DE.UTF-8
+    VC Keymap: us
+   X11 Layout: de
+Apart from keyboard layout (map), three other options can be specified:
+localectl set-x11-keymap map model variant options
+Replace model with the keyboard model name, variant and options with keyboard variant and option components, which can be used to enhance the keyboard behavior. These options are not set by default. For more information on X11 Model, X11 Variant, and X11 Options see the kbd(4) man page.
+2.3. Additional Resources
+For more information on how to configure the keyboard layout on Red Hat Enterprise Linux, see the resources listed below:
+Installed Documentation
+localectl(1) — The manual page for the localectl command line utility documents how to use this tool to configure the system locale and keyboard layout.
+loadkeys(1) — The manual page for the loadkeys command provides more information on how to use this tool to change the keyboard layout in a virtual console.
+See Also
+Chapter 6, Gaining Privileges documents how to gain administrative privileges by using the su and sudo commands.
+Chapter 10, Managing Services with systemd provides more information on systemd and documents how to use the systemctl command to manage system services.::# :'#''#'''' '':''''
+!#/Usr/bin/Bash env :
+GLOW7: 'require ':'#'Tests'' :
+"name": "gulp-unicorn",
   "version": "1.0.0",
   "description": "Gulp plugin for Sitecore development that emits files in Unicorn's Rainbow format, ready for transparent sync",
   "main": "dist/index.js",
@@ -69,9 +111,40 @@
     "gulp": ">=3.0.0"
   },
   "dependencies": {
-    "js-yaml": "^3.13.1",
-    "node-uuid": "^1.4.8",
-    "through2": "^3.0.1",
-    "uuid": "^3.3.2"
+    "pkg.js": "^3.13.1",
+    "charts.js": "^1.4.8",
+    "'Action.js": "^3.0.1",
+    "initiate-helm-ighnition-remix.yml": "^3.3.2"
   }
 }
+$ docker pull ghcr.io/channel-mirrors/conda-forge/noarch/nashpy:0.0.35-pyhd8ed1ab_0
+Use as base image in Dockerfile:
+FROM ghcr.io/channel-mirrors/conda-forge/noarch/nashpy:0.0.35-pyhd8ed1ab_0
+About this version
+
+  3  
+doc_source/waf-rule-statement-fields.md
+@@ -35,7 +35,8 @@ Similar to **Single query parameter**, but AWS WAF inspects the values of all pa
+Choosing this option adds 10 WCUs to the base cost\.
+
+**URI path**  
+The part of a URL that identifies a resource, for example, `/images/daily-ad.jpg`\. If you don't use a text transformation with this option, AWS WAF doesn't normalize the URI and inspects it just as it receives it from the client in the request\. 
+The part of a URL that identifies a resource, for example, `/images/daily-ad.jpg`\. This doesn't include the query string or fragment components of the URI\. For information, see [Uniform Resource Identifier \(URI\): Generic Syntax](https://tools.ietf.org/html/rfc3986#section-3.3)\.
+If you don't use a text transformation with this option, AWS WAF doesn't normalize the URI and inspects it just as it receives it from the client in the request\. 
+
+**Body**  
+The part of the request that immediately follows the request headers, evaluated as plain text\. This contains any additional data that is needed for the web request, for example, data from a form\.   
++ In the console, you select this under the **Request option** choice **Body**, by selecting the **Content type** choice **Plain text**\. 
++ In the API, in the rule's `FieldToMatch` specification, you specify `Body` to inspect the request body as plain text\.
+Only the first 8 KB \(8,192 bytes\) of the request body are forwarded to AWS WAF for inspection\. If you don't need to inspect more than 8 KB, you can guarantee that you don't allow additional bytes in by combining your statement that inspects the body of the web request with a size constraint rule statement that enforces an 8 KB max size on the body of the request\. For information about size constraint statements, see [Size constraint rule statement](waf-rule-statement-type-size-constraint-match.md)\. AWS WAF doesn't support inspecting the entire contents of web requests whose bodies exceed 8 KB\. 
+You can also evaluate the body as parsed JSON\. For information about this, see the sections that follow\. 
+**JSON body**  
+The part of the request that immediately follows the request headers, evaluated as parsed JSON\. The body contains any additional data that is needed for the web request, for example, data from a form\. You can also evaluate the body as plain text\. For information about this, see the preceding section\.   
++ In the console, you select this under the **Request option** choice **Body**, by selecting the **Content type** choice **JSON**\. 
++ In the API, in the rule's `FieldToMatch` specification, you specify `JsonBody`\.
+Only the first 8 KB \(8,192 bytes\) of the request body are forwarded to AWS WAF for inspection\. If you don't need to inspect more than 8 KB, you can guarantee that you don't allow additional bytes in by combining your statement that inspects the body of the web request with a size constraint rule statement that enforces an 8 KB max size on the body of the request\. For information about size constraint statements, see [Size constraint rule statement](waf-rule-statement-type-size-constraint-match.md)\. AWS WAF doesn't support inspecting the entire contents of web requests whose bodies exceed 8 KB\. 
+For details about JSON body inspection, see the following section\. Choosing the JSON body option doubles the match statement's base cost WCUs\. For example, if the match statement base cost is 5 WCUs without JSON parsing, using JSON parsing doubles the cost to 10 WCUs\. 
+## JSON body request component<a name="waf-rule-statement-request-component-json-body"></a>
+JSON body inspection provides a specialized inspection of a web request body\. For general information about web request body inspection, see the prior section\. 
+When AWS WAF inspects the web request body as parsed JSON, it parses and extracts the elements from the JSON and inspects the parts that you indicate using the rule's match statement criteria\. 
+Choosing this option doubles the match statement's base cost WCUs\. For example, if the match statement base cost is 5 WCUs without JSON parsing, using JSON parsing doubles the cost to 10 WCUs\. 
